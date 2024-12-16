@@ -5,6 +5,19 @@ body {
   height: 100vh;
   margin: 0;
 }
+/* Container to hold the title and dot */
+.title-container {
+  display: inline-flex; /* Keep the title and dot inline */
+  align-items: center;  /* Vertically align the dot with the title */
+}
+/* Status dot */
+#statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: red; /* Red by default */
+  margin-left: 10px; /* Space between title and dot */
+}
 #messages {
   flex-grow: 1;
   overflow-y: auto;

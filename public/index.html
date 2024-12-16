@@ -8,7 +8,10 @@
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>Socket.IO Chat</h1>
+  <div class="title-container">
+    <h1>Socket.IO Example</h1>
+    <div id="statusDot"></div>
+  </div>
   <div id="messages"></div>
   <div id="inputContainer">
     <input id="messageInput" type="text" placeholder="Type a message" />
@@ -17,51 +20,74 @@
   <script>
     const socket = io();
     
-    let currentMessageDiv = null; 
-    function appendStreamData(data, role = 'system-message') {
+    //system message
+    let activeMessageElement = null; 
+    function displaySystemMessage(data, role = 'system-message') {
       
       let parsedData;
+      let messageContent;
       try {
         if (typeof data === 'string') {
+          //stream data
           parsedData = JSON.parse(data);
+          messageContent= parsedData.message.content;
         } else {
-          parsedData = data;
+          //error structure data (json)
+          parsedData = data.message;
+          messageContent= parsedData
+          activeMessageElement = null
         }
       } catch (error) {
         console.error('JSON Parse error:', error);
         return;
       }
-      const messageContent = parsedData.message.content;
-
+    
+      //stream data
       //流式添加訊息
-      if (!currentMessageDiv) {
-        currentMessageDiv = document.createElement('p');
-        currentMessageDiv.classList.add('message',role);
-        document.getElementById('messages').appendChild(currentMessageDiv);
+      if (!activeMessageElement) {
+        activeMessageElement = document.createElement('p');
+        activeMessageElement.classList.add('message',role);
+        document.getElementById('messages').appendChild(activeMessageElement);
       }
-      currentMessageDiv.textContent += messageContent;
+      activeMessageElement.textContent += messageContent;
 
       //流式訊息終止
       if (parsedData.done) {
-        currentMessageDiv.textContent += "(by ollama)";
-        currentMessageDiv = null;
+        activeMessageElement.textContent += "(by ollama)";
+        activeMessageElement = null;
       }
 
-      const messageList = document.getElementById('messages');
-      messageList.scrollTop = messageList.scrollHeight;
+      const messagesContainer = document.getElementById('messages');
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    socket.on('ollama-stream', (data) => {
-      appendStreamData(data, 'system-message');
+    //ollamaIsReady
+    function updateConnectionStatus(status) {
+      const statusDot = document.getElementById('statusDot');
+      statusDot.style.backgroundColor = (status === 'connected') ? 'green' : 'red';
+    }
+
+    socket.on('ollamaIsReady', (status) => {
+      updateConnectionStatus(status ? 'connected' : 'disconnected');
     });
 
-    function sendMessage(event, message, role) {
+    //response type
+    socket.on('ollama-stream', (data) => {
+      displaySystemMessage(data, 'system-message');
+    });
+
+    socket.on('ollama-error', (data) => {
+      console.log(data)
+      displaySystemMessage(data, 'error-message');
+    });
+
+    function sendMessageToServer(event, message, role) {
       if (message.trim() !== '') {
         socket.emit(event, message);
-        const li = document.createElement('p');
-        li.textContent = message;
-        li.classList.add('message', role);
-        document.getElementById('messages').appendChild(li);
+        const messageElement = document.createElement('p');
+        messageElement.textContent = message;
+        messageElement.classList.add('message', role);
+        document.getElementById('messages').appendChild(messageElement);
         document.getElementById('messageInput').value = '';
         document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;  // 滾動到最新訊息
       }
@@ -69,13 +95,13 @@
 
     document.getElementById('sendButton').addEventListener('click', () => {
       const message = document.getElementById('messageInput').value;
-      sendMessage('message', message, 'user-message');
+      sendMessageToServer('message', message, 'user-message');
     });
 
     document.getElementById('messageInput').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         const message = event.target.value;
-        sendMessage('message', message,role='user-message');
+        sendMessageToServer('message', message,role='user-message');
       }
     });
 
