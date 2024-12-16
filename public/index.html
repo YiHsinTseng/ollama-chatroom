@@ -4,39 +4,81 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Socket.IO Example</title>
+  <link rel="stylesheet" href="css/style.css">
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
   <h1>Socket.IO Chat</h1>
-  <input id="messageInput" type="text" placeholder="Type a message" />
-  <button id="sendButton">Send</button>
-  <ul id="messages"></ul>
-
+  <div id="messages"></div>
+  <div id="inputContainer">
+    <input id="messageInput" type="text" placeholder="Type a message" />
+    <button id="sendButton">Send</button>
+  </div>
   <script>
-    const socket = io();  // 建立與伺服器的連接
+    const socket = io();
+    
+    let currentMessageDiv = null; 
+    function appendStreamData(data, role = 'system-message') {
+      
+      let parsedData;
+      try {
+        if (typeof data === 'string') {
+          parsedData = JSON.parse(data);
+        } else {
+          parsedData = data;
+        }
+      } catch (error) {
+        console.error('JSON Parse error:', error);
+        return;
+      }
+      const messageContent = parsedData.message.content;
 
-    // 監聽來自伺服器的訊息
-    socket.on('message', (msg) => {
-      const li = document.createElement('li');
-      li.textContent = msg;
-      document.getElementById('messages').appendChild(li);
+      //流式添加訊息
+      if (!currentMessageDiv) {
+        currentMessageDiv = document.createElement('p');
+        currentMessageDiv.classList.add('message',role);
+        document.getElementById('messages').appendChild(currentMessageDiv);
+      }
+      currentMessageDiv.textContent += messageContent;
+
+      //流式訊息終止
+      if (parsedData.done) {
+        currentMessageDiv.textContent += "(by ollama)";
+        currentMessageDiv = null;
+      }
+
+      const messageList = document.getElementById('messages');
+      messageList.scrollTop = messageList.scrollHeight;
+    }
+
+    socket.on('ollama-stream', (data) => {
+      appendStreamData(data, 'system-message');
     });
 
-    // 點擊「Send」按鈕時發送訊息
+    function sendMessage(event, message, role) {
+      if (message.trim() !== '') {
+        socket.emit(event, message);
+        const li = document.createElement('p');
+        li.textContent = message;
+        li.classList.add('message', role);
+        document.getElementById('messages').appendChild(li);
+        document.getElementById('messageInput').value = '';
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;  // 滾動到最新訊息
+      }
+    }
+
     document.getElementById('sendButton').addEventListener('click', () => {
       const message = document.getElementById('messageInput').value;
-      socket.emit('message', message);  // 發送訊息到伺服器
-      document.getElementById('messageInput').value = '';  // 清空輸入框
+      sendMessage('message', message, 'user-message');
     });
 
-     // 監聽鍵盤事件：如果按下 Enter 鍵就發送訊息
-     document.getElementById('messageInput').addEventListener('keydown', (event) => {
+    document.getElementById('messageInput').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         const message = event.target.value;
-        socket.emit('message', message);  // 發送訊息到伺服器
-        event.target.value = '';  // 清空輸入框
+        sendMessage('message', message,role='user-message');
       }
     });
+
   </script>
 </body>
 </html>

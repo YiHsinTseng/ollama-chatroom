@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "8081:8080"
+      - "11435:11434"
+    environment:
+      - OLLAMA_MODELS=/root/.ollama/models
+    restart: always
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      # - ./ollama/ollama:/root/.ollama # 速度比較慢
+      - ollama:/root/.ollama #速度較快
+    entrypoint: [ "/usr/bin/bash", "/entrypoint.sh" ]
+volumes:
+  ollama:
