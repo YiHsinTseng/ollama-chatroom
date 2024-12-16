@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Example</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Socket.IO Chat</h1>
+  <input id="messageInput" type="text" placeholder="Type a message" />
+  <button id="sendButton">Send</button>
+  <ul id="messages"></ul>
+
+  <script>
+    const socket = io();  // 建立與伺服器的連接
+
+    // 監聽來自伺服器的訊息
+    socket.on('message', (msg) => {
+      const li = document.createElement('li');
+      li.textContent = msg;
+      document.getElementById('messages').appendChild(li);
+    });
+
+    // 點擊「Send」按鈕時發送訊息
+    document.getElementById('sendButton').addEventListener('click', () => {
+      const message = document.getElementById('messageInput').value;
+      socket.emit('message', message);  // 發送訊息到伺服器
+      document.getElementById('messageInput').value = '';  // 清空輸入框
+    });
+
+     // 監聽鍵盤事件：如果按下 Enter 鍵就發送訊息
+     document.getElementById('messageInput').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const message = event.target.value;
+        socket.emit('message', message);  // 發送訊息到伺服器
+        event.target.value = '';  // 清空輸入框
+      }
+    });
+  </script>
+</body>
+</html>
