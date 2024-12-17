@@ -20,10 +20,28 @@
   <script>
     const socket = io();
     
-    //system message
-    let activeMessageElement = null; 
-    function displaySystemMessage(data, role = 'system-message') {
+    //TODO 加上對話ID 這樣比較好針對性回覆
+  
+    let activeMessageElement = null; //用於引用操作，便於stream處理
+
+    //system message（error,stream）
+    //NOTE 先拆開之後再考慮重構
+    function displayErrorMessage(data, role = 'error-message') {
+       //error structure data (json)
+       parsedData = data.message;
+       messageContent= parsedData
+       //非 stream
+       activeMessageElement = document.createElement('p');
+       activeMessageElement.classList.add('message',role);
+       document.getElementById('messages').appendChild(activeMessageElement);
+       activeMessageElement.textContent += messageContent;
+       activeMessageElement = null;
+    }
+
+    function displayStreamMessage(data, role = 'system-message') {
       
+      //stream data content
+      //TODO 解耦-列出訊息
       let parsedData;
       let messageContent;
       try {
@@ -31,32 +49,36 @@
           //stream data
           parsedData = JSON.parse(data);
           messageContent= parsedData.message.content;
-        } else {
-          //error structure data (json)
-          parsedData = data.message;
-          messageContent= parsedData
-          activeMessageElement = null
+        } else {//JSON Object
+          parsedData = data;
+          messageContent= parsedData.message.content;
         }
       } catch (error) {
         console.error('JSON Parse error:', error);
         return;
       }
+      //TODO const?
     
-      //stream data
-      //流式添加訊息
+      //創建新的對話元素，讓全局引用，並附加到所有對話框之下
+      //之後全局的activeMessageElement就會指向已經掛載的位置
       if (!activeMessageElement) {
+        //TODO 解耦-創建新元素
         activeMessageElement = document.createElement('p');
         activeMessageElement.classList.add('message',role);
-        document.getElementById('messages').appendChild(activeMessageElement);
+    
+        //TODO 解耦-掛載到DOM
+        document.getElementById('messages').appendChild(activeMessageElement);// 先把剛創建的消息掛載到對話框
       }
-      activeMessageElement.textContent += messageContent;
 
-      //流式訊息終止
+      //stream data message
+      //透過全局對象來對訊訊息框流式添加，直到事件結束
+      activeMessageElement.textContent += messageContent;
       if (parsedData.done) {
         activeMessageElement.textContent += "(by ollama)";
         activeMessageElement = null;
       }
 
+      //移動對話焦點
       const messagesContainer = document.getElementById('messages');
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -73,12 +95,18 @@
 
     //response type
     socket.on('ollama-stream', (data) => {
-      displaySystemMessage(data, 'system-message');
+      console.log(data)
+      displayStreamMessage(data, 'system-message');
+    });
+  
+    //額外中斷事件，做到區隔職責
+    socket.on('ollama-stream-end',  (data) => {
+      activeMessageElement.textContent += "(...終止)";//在當前掛載好的對話字句加入終止
+      activeMessageElement=null;//斷開引用
     });
 
     socket.on('ollama-error', (data) => {
-      console.log(data)
-      displaySystemMessage(data, 'error-message');
+      displayErrorMessage(data, 'error-message');
     });
 
     function sendMessageToServer(event, message, role) {
