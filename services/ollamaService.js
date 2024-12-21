@@ -28,18 +28,20 @@ async function verifyOllamaStatus(socket) {
   }
 }
 
-let currentRequest; // 保存當前請求流的取消源
+// ollama v0.2後支持concurrency,可確保多使用者不受影響
+const userRequests = {}; // 用來保存每個不同使用者的請求(用於中止前一個請求)
 
 async function streamOllamaResponse(socket, content) {
+  const socketId = socket.id;
   try {
     // 透過axios canceltoken 中途截斷回應或提供新請求截斷回應(不會用到flag 變數)
     // 如果已有請求存在，先取消舊的請求
-    if (currentRequest) {
+    if (userRequests[socketId]) {
       // 停止當前請求流
-      currentRequest.cancel('Request aborted by new incoming request'); // 取消舊的請求
+      userRequests[socketId].cancel('Request aborted by new incoming request');// 取消舊的請求
       // 中斷stream 透過額外事件來區隔責任
       socket.emit('ollama-stream-end', { stop: true }); // TODO 思考要怎樣的格式或訊息，這裡傳的是JSON，但ollama傳的是字串(chunk.toString())
-      console.log('Old request aborted');
+      console.log(`Old request for user ${socketId} aborted`);
     }
 
     const requestBody = {
@@ -51,12 +53,13 @@ async function streamOllamaResponse(socket, content) {
     };
 
     // 創建新的取消源
-    currentRequest = axios.CancelToken.source();
+    const cancelTokenSource = axios.CancelToken.source();
+    userRequests[socketId] = cancelTokenSource;
 
     // 發送新請求，並使用取消信號
     const response = await axios.post(OLLAMA_API_CHAT_URL, requestBody, {
       responseType: 'stream',
-      cancelToken: currentRequest.token, // 為請求設置取消信號
+      cancelToken: cancelTokenSource.token, // 為請求設置取消信號
     });
 
     // 接收 Ollama LLM server 生成的訊息並發送給用戶
@@ -64,6 +67,7 @@ async function streamOllamaResponse(socket, content) {
       // console.log('Received data chunk from Ollama API');
       console.log(chunk.toString());
       socket.emit('ollama-stream', chunk.toString()); // TODO 考慮是否要轉成JSON物件
+      // TODO 存到日誌中等待後續分析個別使用者使用情況就好
     });
   } catch (error) {
     if (axios.isCancel(error)) {

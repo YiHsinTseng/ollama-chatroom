@@ -20,18 +20,18 @@
   <script>
     const socket = io();
     
-    //TODO 加上對話ID 這樣比較好針對性回覆
+    //TODO 加上對話ID(由後端統一生成、儲存並emit)，這樣比較好針對性回覆
   
     let activeMessageElement = null; //用於引用操作，便於stream處理
 
     //system message（error,stream）
-    //NOTE 先拆開之後再考慮重構
+    //TODO 先重構成 create message element，之後再設計加上如response title timestamp等資訊
     function displayErrorMessage(data, role = 'error-message') {
        //error structure data (json)
        parsedData = data.message;
        messageContent= parsedData
        //非 stream
-       activeMessageElement = document.createElement('p');
+       activeMessageElement = document.createElement('div');
        activeMessageElement.classList.add('message',role);
        document.getElementById('messages').appendChild(activeMessageElement);
        activeMessageElement.textContent += messageContent;
@@ -62,8 +62,8 @@
       //創建新的對話元素，讓全局引用，並附加到所有對話框之下
       //之後全局的activeMessageElement就會指向已經掛載的位置
       if (!activeMessageElement) {
-        //TODO 解耦-創建新元素
-        activeMessageElement = document.createElement('p');
+        //TODO 解耦-create message element
+        activeMessageElement = document.createElement('div');
         activeMessageElement.classList.add('message',role);
     
         //TODO 解耦-掛載到DOM
@@ -112,7 +112,7 @@
     function sendMessageToServer(event, message, role) {
       if (message.trim() !== '') {
         socket.emit(event, message);
-        const messageElement = document.createElement('p');
+        const messageElement = document.createElement('div');
         messageElement.textContent = message;
         messageElement.classList.add('message', role);
         document.getElementById('messages').appendChild(messageElement);
