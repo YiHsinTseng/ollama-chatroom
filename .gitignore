@@ -1,4 +1,5 @@
 .vscode
+docs
 
 package-lock.json
 pnpm-lock.yaml
