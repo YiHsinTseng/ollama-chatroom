@@ -31,6 +31,7 @@
        parsedData = data.message;
        messageContent= parsedData
        //非 stream
+       //NOTE HTML tag 附註閱讀器 無障礙=>  element, div(para),attr 只有hint,txtcontent
        activeMessageElement = document.createElement('div');
        activeMessageElement.classList.add('message',role);
        document.getElementById('messages').appendChild(activeMessageElement);
@@ -126,10 +127,17 @@
       sendMessageToServer('message', message, 'user-message');
     });
 
+    document.getElementById('messageInput').addEventListener('compositionstart', () => {
+      isComposing = true;
+    });
+
+    document.getElementById('messageInput').addEventListener('compositionend', () => {
+      isComposing = false;
+    });
     document.getElementById('messageInput').addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
+      if (event.key === 'Enter' && !isComposing) {
         const message = event.target.value;
-        sendMessageToServer('message', message,role='user-message');
+        sendMessageToServer('message', message, 'user-message');
       }
     });
 
