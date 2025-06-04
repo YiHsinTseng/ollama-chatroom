@@ -69,6 +69,12 @@ async function streamOllamaResponse(socket, content) {
       socket.emit('ollama-stream', chunk.toString()); // TODO 考慮是否要轉成JSON物件
       // TODO 存到日誌中等待後續分析個別使用者使用情況就好
     });
+    response.data.on('end', () => {
+      console.log(`Stream ended for user ${socketId}`);
+      socket.emit('ollama-stream-end', { stop: true });
+      // stream 結束時清除 cancel source
+      delete userRequests[socketId];
+    });
   } catch (error) {
     if (axios.isCancel(error)) {
       console.log('Request canceled', error.message);
@@ -78,6 +84,8 @@ async function streamOllamaResponse(socket, content) {
         type: 'error',
         message: 'Error fetching data from Ollama API',
       });
+      // stream 結束時清除 cancel source
+      delete userRequests[socketId];
     }
   }
 }
