@@ -23,7 +23,16 @@
     //TODO 加上對話ID(由後端統一生成、儲存並emit)，這樣比較好針對性回覆
   
     let activeMessageElement = null; //用於引用操作，便於stream處理
-
+    const WaitingDefaultText='...等待回覆中...'
+    
+    function createActiveMessageElement(role = 'system-message', defaultText = WaitingDefaultText) {
+      if (!activeMessageElement) {
+        activeMessageElement = document.createElement('div');
+        activeMessageElement.classList.add('message', role);
+        activeMessageElement.textContent = defaultText;
+        document.getElementById('messages').appendChild(activeMessageElement);
+      }
+    }
     //system message（error,stream）
     //TODO 先重構成 create message element，之後再設計加上如response title timestamp等資訊
     function displayErrorMessage(data, role = 'error-message') {
@@ -32,10 +41,14 @@
        messageContent= parsedData
        //非 stream
        //NOTE HTML tag 附註閱讀器 無障礙=>  element, div(para),attr 只有hint,txtcontent
-       activeMessageElement = document.createElement('div');
-       activeMessageElement.classList.add('message',role);
-       document.getElementById('messages').appendChild(activeMessageElement);
-       activeMessageElement.textContent += messageContent;
+      //  activeMessageElement = document.createElement('div');
+      //  activeMessageElement.classList.add('message',role);
+      //  document.getElementById('messages').appendChild(activeMessageElement);
+      // createActiveMessageElement(role);
+      if (activeMessageElement && activeMessageElement.textContent === WaitingDefaultText) {
+        activeMessageElement.textContent = '';
+      } 
+      activeMessageElement.textContent += messageContent;
        activeMessageElement = null;
     }
 
@@ -58,20 +71,15 @@
         console.error('JSON Parse error:', error);
         return;
       }
-      //TODO const?
-    
-      //創建新的對話元素，讓全局引用，並附加到所有對話框之下
-      //之後全局的activeMessageElement就會指向已經掛載的位置
-      if (!activeMessageElement) {
-        //TODO 解耦-create message element
-        activeMessageElement = document.createElement('div');
-        activeMessageElement.classList.add('message',role);
-    
-        //TODO 解耦-掛載到DOM
-        document.getElementById('messages').appendChild(activeMessageElement);// 先把剛創建的消息掛載到對話框
-      }
+
+      // 確保回覆訊息框被創建(因為中斷前個回應的話，無法保證提前創建回覆訊息框)
+      createActiveMessageElement(role);
 
       //stream data message
+      // 如果是初始 "等待中" 訊息就清空，避免重複
+      if (activeMessageElement && activeMessageElement.textContent === WaitingDefaultText) {
+        activeMessageElement.textContent = '';
+      }
       //透過全局對象來對訊訊息框流式添加，直到事件結束
       activeMessageElement.textContent += messageContent;
       if (parsedData.done) {
@@ -102,8 +110,10 @@
   
     //額外中斷事件，做到區隔職責
     socket.on('ollama-stream-end',  (data) => {
-      activeMessageElement.textContent += "(...終止)";//在當前掛載好的對話字句加入終止
-      activeMessageElement=null;//斷開引用
+      if (activeMessageElement) {
+        activeMessageElement.textContent += "(...終止)";//在當前掛載好的對話字句加入終止
+        activeMessageElement=null;//斷開引用
+      }
     });
 
     socket.on('ollama-error', (data) => {
@@ -119,6 +129,7 @@
         document.getElementById('messages').appendChild(messageElement);
         document.getElementById('messageInput').value = '';
         document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;  // 滾動到最新訊息
+        createActiveMessageElement('system-message');
       }
     }
 
