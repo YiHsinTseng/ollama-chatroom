@@ -113,6 +113,7 @@
       if (activeMessageElement) {
         activeMessageElement.textContent += "(...終止)";//在當前掛載好的對話字句加入終止
         activeMessageElement=null;//斷開引用
+        createActiveMessageElement();//確保有WaitingDefaultText
       }
     });
 
